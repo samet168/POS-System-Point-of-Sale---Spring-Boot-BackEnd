@@ -9,6 +9,9 @@ import com.example.StoreMSI.Repository.CategoryRepository;
 import com.example.StoreMSI.Repository.ProductRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -122,23 +125,23 @@ public class ProductService {
 
 
 
-    public List<ProductResponse> filter(
+    public Page<ProductResponse> filter(
             Long id,
             String productName,
             Boolean status,
             Long categoryId,
-            Long brandId
+            Long brandId,
+            int page,
+            int size
     ) {
 
         Specification<Product> spec = Specification.unrestricted();
 
-        // ✅ filter by ID
         if (id != null) {
             spec = spec.and((root, query, cb) ->
                     cb.equal(root.get("id"), id));
         }
 
-        // ✅ filter by product name (LIKE search)
         if (productName != null && !productName.trim().isEmpty()) {
             spec = spec.and((root, query, cb) ->
                     cb.like(
@@ -147,30 +150,28 @@ public class ProductService {
                     ));
         }
 
-        // ✅ filter by status
         if (status != null) {
             spec = spec.and((root, query, cb) ->
                     cb.equal(root.get("status"), status));
         }
 
-        // ✅ filter by category (JOIN)
         if (categoryId != null) {
             spec = spec.and((root, query, cb) ->
                     cb.equal(root.get("category").get("id"), categoryId));
         }
 
-        // ✅ filter by brand (JOIN)
         if (brandId != null) {
             spec = spec.and((root, query, cb) ->
                     cb.equal(root.get("brand").get("id"), brandId));
         }
 
-        // ✅ sort (latest first)
-        Sort sort = Sort.by(Sort.Order.desc("id"));
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Order.desc("id"))
+        );
 
-        return repo.findAll(spec,sort)
-                .stream()
-                .map(mapper::toResponse)
-                .toList();
+        return repo.findAll(spec, pageable)
+                .map(mapper::toResponse);
     }
 }

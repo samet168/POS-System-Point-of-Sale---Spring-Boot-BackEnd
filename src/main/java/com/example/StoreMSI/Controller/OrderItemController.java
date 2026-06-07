@@ -7,6 +7,7 @@ import com.example.StoreMSI.Util.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +19,7 @@ public class OrderItemController {
     @Autowired private OrderItemService service;
 
     // ================= CREATE =================
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'admin', 'CASHIER', 'cashier')")
     @PostMapping
     public ApiResponse<OrderItemResponse> create(
             @Valid @RequestBody OrderItemRequest req
@@ -26,6 +28,7 @@ public class OrderItemController {
     }
 
     // ================= UPDATE =================
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'admin', 'CASHIER', 'cashier')")
     @PutMapping("/{id}")
     public ApiResponse<OrderItemResponse> update(
             @PathVariable Long id,
@@ -35,6 +38,7 @@ public class OrderItemController {
     }
 
     // ================= DELETE =================
+     @PreAuthorize("hasAnyAuthority('ADMIN', 'admin')")
     @DeleteMapping("/{id}")
     public ApiResponse<String> delete(@PathVariable Long id) {
         service.delete(id);
@@ -42,18 +46,21 @@ public class OrderItemController {
     }
 
     // ================= GET ALL =================
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'admin', 'CASHIER', 'cashier')")
     @GetMapping
     public ApiResponse<List<OrderItemResponse>> getAll() {
         return ApiResponse.ok(service.getAll());
     }
 
     // ================= GET BY ID =================
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'admin', 'CASHIER', 'cashier')")
     @GetMapping("/{id}")
     public ApiResponse<OrderItemResponse> getById(@PathVariable Long id) {
         return ApiResponse.ok(service.getById(id));
     }
 
     // ================= FILTER =================
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'admin', 'CASHIER', 'cashier')")
     @GetMapping("/filter")
     public ApiResponse<Page<OrderItemResponse>> filter(
             @RequestParam(required = false) Long orderId,

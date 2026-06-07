@@ -9,6 +9,7 @@ import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,7 +17,7 @@ import java.util.List;
 @Service
 @Transactional
 public class UserService {
-
+    @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private UserRepository repo;
     @Autowired private UserMapper mapper;
 
@@ -28,9 +29,14 @@ public class UserService {
         }
 
         User user = mapper.toEntity(req);
+
+        // 🔥 IMPORTANT: hash password before save
+        user.setPasswordHash(
+                passwordEncoder.encode(req.getPassword())
+        );
+
         return mapper.toResponse(repo.save(user));
     }
-
     // ================= UPDATE =================
     public UserResponse update(Long id, UserRequest req) {
 

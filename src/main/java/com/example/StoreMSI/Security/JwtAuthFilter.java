@@ -1,11 +1,14 @@
 package com.example.StoreMSI.Security;
 
+import com.example.StoreMSI.Service.TokenBlacklistService;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -13,12 +16,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 
 @Component
+@RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
 
-    @Autowired
-    private JwtUtil jwtUtil;
+    private final JwtUtil jwtUtil;
+    private final TokenBlacklistService blacklistService;
 
     @Override
     protected void doFilterInternal(
@@ -29,32 +34,58 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String authHeader = request.getHeader("Authorization");
 
-        String token = null;
-        String username = null;
+        if (authHeader != null &&
+                authHeader.startsWith("Bearer ")) {
 
-        // Bearer token
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            token = authHeader.substring(7);
-            username = jwtUtil.extractUsername(token);
-        }
+            String token = authHeader.substring(7);
 
-        // validate token
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            if (blacklistService.isTokenRevoked(token)) {
+
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+
+                response.setContentType("application/json");
+
+                response.getWriter().write("""
+                    {
+                      "success": false,
+                      "message": "Token has been revoked"
+                    }
+                    """);
+
+                return;
+            }
 
             if (jwtUtil.validate(token)) {
 
-                UsernamePasswordAuthenticationToken authToken =
+                Claims claims =
+                        jwtUtil.extractAllClaims(token);
+
+                String username =
+                        claims.getSubject();
+
+                String role =
+                        claims.get("role", String.class);
+
+                List<SimpleGrantedAuthority> authorities =
+                        Collections.singletonList(
+                                new SimpleGrantedAuthority(role)
+                        );
+
+                UsernamePasswordAuthenticationToken auth =
                         new UsernamePasswordAuthenticationToken(
                                 username,
                                 null,
-                                Collections.emptyList()
+                                authorities
                         );
 
-                authToken.setDetails(
-                        new WebAuthenticationDetailsSource().buildDetails(request)
+                auth.setDetails(
+                        new WebAuthenticationDetailsSource()
+                                .buildDetails(request)
                 );
 
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+                SecurityContextHolder
+                        .getContext()
+                        .setAuthentication(auth);
             }
         }
 
